@@ -2,26 +2,21 @@ package com.summertaker.member48;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.widget.SwipeRefreshLayout;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.GridView;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.summertaker.member48.common.BaseApplication;
-import com.summertaker.member48.common.Util;
+import com.summertaker.member48.util.Util;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,26 +26,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MemberFragment extends Fragment {
+public class MemberFragment extends Fragment implements MemberInterface {
 
-    String mTag = "MemberFragment";
-    String mVolleyTag = mTag;
+    private String mTag = this.getClass().getSimpleName();
+    private String mVolleyTag = mTag;
 
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private boolean mIsRefreshMode = false;
 
-    private WebView mWebView;
+    private MemberFragmentListener mListener;
 
-    WebFragmentListener mCallback;
+    private String mRequestUrl;
+    private String mUserAgent;
 
-    RequestQueue queue;
-
-    private GridView gridView;
-    ArrayList<MemberData> mMemberList = new ArrayList<>();
+    private GridView mGridView;
+    private MemberAdapter mAdapter;
+    private ArrayList<MemberData> mMemberList;
 
     // Container Activity must implement this interface
-    public interface WebFragmentListener {
-        public void onWebFragmentEvent(String event, String url, boolean canGoBack);
+    public interface MemberFragmentListener {
+        public void onMemberFragmentEvent(String event);
     }
 
     @Override
@@ -63,7 +58,7 @@ public class MemberFragment extends Fragment {
             // This makes sure that the container activity has implemented
             // the callback interface. If not, it throws an exception
             try {
-                mCallback = (WebFragmentListener) activity;
+                mListener = (MemberFragmentListener) activity;
             } catch (ClassCastException e) {
                 throw new ClassCastException(activity.toString() + " must implement OnHeadlineSelectedListener");
             }
@@ -86,17 +81,24 @@ public class MemberFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        View rootView = inflater.inflate(R.layout.gridview_fragment, container, false);
+        View rootView = inflater.inflate(R.layout.member_fragment, container, false);
 
         mSwipeRefreshLayout = rootView.findViewById(R.id.swiperefresh);
         mSwipeRefreshLayout.setColorSchemeResources(R.color.swipe_color_1, R.color.swipe_color_2, R.color.swipe_color_3, R.color.swipe_color_4);
 
-        gridView = rootView.findViewById(R.id.gridView);
+        mGridView = rootView.findViewById(R.id.gridView);
+
+        mMemberList = new ArrayList<>();
+        mAdapter = new MemberAdapter(getContext(), mMemberList, this);
+        mGridView.setAdapter(mAdapter);
 
         //String title = getArguments().getString("title");
-        String url = getArguments().getString("url");
+        mRequestUrl = getArguments().getString("url");
+        mUserAgent = BaseApplication.getMobileUserAgent();
 
-        String fileName = Util.getUrlToFileName(url);
+        mListener.onMemberFragmentEvent("onRefreshStarted");
+
+        String fileName = Util.getUrlToFileName(mRequestUrl);
         //Log.d(mTag, fileName);
         File file = new File(BaseApplication.getSavePath(), fileName);
         if (file.exists()) {
@@ -115,13 +117,13 @@ public class MemberFragment extends Fragment {
                     //builder.append('\n');
                 }
                 reader.close();
-                parseData(url, builder.toString());
+                parseData(builder.toString());
             } catch (IOException e) {
                 //You'll need to add proper error handling here
             }
         } else {
             //BaseApplication baseApplication = ((BaseApplication) getActivity().getApplicationContext());
-            requestData(url, BaseApplication.getMobileUserAgent());
+            requestData();
         }
 
         return rootView;
@@ -140,30 +142,30 @@ public class MemberFragment extends Fragment {
         });
     }
 
-    private void requestData(final String url, final String userAgent) {
+    private void requestData() {
         //Log.e(mTag, "url: " + url);
         //Log.e(mTag, "userAgent: " + userAgent);
 
 
         //if (cacheData == null) {
-        StringRequest strReq = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+        StringRequest strReq = new StringRequest(Request.Method.GET, mRequestUrl, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
                 //Log.d(mTag, response.toString());
                 //mCacheManager.save(cacheId, response);
-                writeData(url, response);
+                writeData(mRequestUrl, response);
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                parseData(url, "");
+                parseData("");
             }
         }) {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 HashMap<String, String> headers = new HashMap<>();
                 //headers.put("Content-Type", "application/json; charset=utf-8");
-                headers.put("User-agent", userAgent);
+                headers.put("User-agent", mUserAgent);
                 return headers;
             }
         };
@@ -177,15 +179,18 @@ public class MemberFragment extends Fragment {
 
     private void writeData(String url, String response) {
         Util.writeToFile(BaseApplication.getSavePath(), Util.getUrlToFileName(url), response);
-        parseData(url, response);
+        parseData(response);
     }
 
-    private void parseData(String url, String response) {
-        if (url.contains("akb48")) {
+    private void parseData(String response) {
+        mMemberList.clear();
+        //mAdapter.notifyDataSetChanged();
+
+        if (mRequestUrl.contains("akb48")) {
             Akb48Parser akb48Parser = new Akb48Parser();
             akb48Parser.parseMemberList(response, mMemberList);
-            renderData();
         }
+        renderData();
     }
 
     private void renderData() {
@@ -199,13 +204,14 @@ public class MemberFragment extends Fragment {
         if (mMemberList.size() == 0) {
             //alertNetworkErrorAndFinish(mErrorMessage);
         } else {
-            if (gridView != null) {
-
-                MemberAdapter adapter = new MemberAdapter(getContext(), mMemberList);
-                gridView.setAdapter(adapter);
-                //gridView.setOnItemClickListener(itemClickListener);
-            }
+            //gridView.setOnItemClickListener(itemClickListener);
         }
+        mAdapter.notifyDataSetChanged();
+
+        if (mIsRefreshMode) {
+            onRefreshComplete();
+        }
+        mListener.onMemberFragmentEvent("onRefreshFinished");
     }
 
     private void onRefreshComplete() {
@@ -213,34 +219,20 @@ public class MemberFragment extends Fragment {
         mIsRefreshMode = false;
     }
 
-    private class WebViewClientClass extends WebViewClient {
-        @Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            view.loadUrl(url);
-            return true;
-        }
-
-        @Override
-        public void onPageStarted(WebView view, String url, Bitmap favicon) {
-            super.onPageStarted(view, url, favicon);
-            mCallback.onWebFragmentEvent("onPageStarted", mWebView.getUrl(), mWebView.canGoBack());
-        }
-
-        @Override
-        public void onPageFinished(WebView view, String url) {
-            mCallback.onWebFragmentEvent("onPageFinished", mWebView.getUrl(), mWebView.canGoBack());
-            if (mIsRefreshMode) {
-                onRefreshComplete();
-            }
-        }
-    }
-
     public void goBack() {
 
     }
 
+    public void goTop() {
+        //mGridView.smoothScrollToPosition(0);
+        mGridView.setSelection(0);
+    }
+
     public void refresh() {
-        //mWebView.reload();
+        //mSwipeRefreshLayout.setRefreshing(true);
+        //mIsRefreshMode = true;
+        mListener.onMemberFragmentEvent("onRefreshStarted");
+        requestData();
     }
 
     public void openInNew() {
@@ -250,11 +242,24 @@ public class MemberFragment extends Fragment {
     }
 
     @Override
+    public void onPictureClick(int position, String imageUrl) {
+
+    }
+
+    @Override
+    public void onNameClick(int position) {
+
+    }
+
+    @Override
+    public void onCloseClick(int position) {
+        mMemberList.remove(position);
+        mAdapter.notifyDataSetChanged();
+    }
+
+    @Override
     public void onStop() {
         super.onStop();
-        // cancel request
-        if (queue != null) {
-            queue.cancelAll(mVolleyTag);
-        }
+        BaseApplication.getInstance().cancelPendingRequests(mVolleyTag);
     }
 }

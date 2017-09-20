@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.summertaker.member48;
+package com.summertaker.member48.util;
 
 import android.content.Context;
 import android.graphics.Typeface;

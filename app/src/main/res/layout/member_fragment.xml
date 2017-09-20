@@ -13,12 +13,12 @@
         android:clipToPadding="false"
         android:drawSelectorOnTop="true"
         android:gravity="center"
-        android:horizontalSpacing="8dp"
+        android:horizontalSpacing="4dp"
         android:listSelector="@drawable/card"
-        android:numColumns="1"
-        android:padding="8dp"
+        android:numColumns="2"
+        android:padding="4dp"
         android:scrollbarStyle="outsideOverlay"
         android:stretchMode="columnWidth"
-        android:verticalSpacing="8dp" />
+        android:verticalSpacing="4dp" />
 
 </android.support.v4.widget.SwipeRefreshLayout>

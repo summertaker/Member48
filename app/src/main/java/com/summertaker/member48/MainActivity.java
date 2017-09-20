@@ -2,7 +2,6 @@ package com.summertaker.member48;
 
 import android.Manifest;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.design.widget.NavigationView;
@@ -22,10 +21,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
 
+import com.summertaker.member48.util.SlidingTabLayout;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, MemberFragment.WebFragmentListener {
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, MemberFragment.MemberFragmentListener {
 
     //static final String LOG_TAG = "TAG";
 
@@ -95,6 +96,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         */
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        toolbar.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                runFragment("goTop");
+            }
+        });
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         mDrawerToggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
@@ -217,6 +224,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 case "goBack":
                     wf.goBack();
                     break;
+                case "goTop":
+                    wf.goTop();
+                    break;
                 case "refresh":
                     wf.refresh();
                     break;
@@ -228,16 +238,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     @Override
-    public void onWebFragmentEvent(String event, String url, boolean canGoBack) {
+    public void onMemberFragmentEvent(String event) {
         switch (event) {
-            case "onPageStarted":
+            case "onRefreshStarted":
                 mProgressBar.setVisibility(View.VISIBLE);
 
                 // 툴바 햄버거 아이콘을 기본으로 설정
                 //mDrawerToggle.setDrawerIndicatorEnabled(true);
 
                 break;
-            case "onPageFinished":
+            case "onRefreshFinished":
                 mProgressBar.setVisibility(View.GONE);
 
                 /*
@@ -258,43 +268,4 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 break;
         }
     }
-
-    /*
-    class SamplePagerAdapter extends PagerAdapter {
-
-        @Override
-        public int getCount() {
-            return 10;
-        }
-
-        @Override
-        public boolean isViewFromObject(View view, Object o) {
-            return o == view;
-        }
-
-        @Override
-        public CharSequence getPageTitle(int position) {
-            return "Item " + (position + 1);
-        }
-
-        @Override
-        public Object instantiateItem(ViewGroup container, int position) {
-            View view = getLayoutInflater().inflate(R.layout.gridview_fragment, container, false);
-            container.addView(view);
-
-            TextView title = (TextView) view.findViewById(R.id.item_title);
-            title.setText(String.valueOf(position + 1));
-
-            //Log.i(LOG_TAG, "instantiateItem() [position: " + position + "]");
-
-            return view;
-        }
-
-        @Override
-        public void destroyItem(ViewGroup container, int position, Object object) {
-            container.removeView((View) object);
-            //Log.i(LOG_TAG, "destroyItem() [position: " + position + "]");
-        }
-    }
-    */
 }

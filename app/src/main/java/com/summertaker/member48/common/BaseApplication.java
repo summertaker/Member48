@@ -30,8 +30,8 @@ public class BaseApplication extends Application {
         MOBILE_USER_AGENT += " Chrome/<Chrome Rev> Mobile Safari/<WebKit Rev>";
 
         SAVE_PATH = Environment.getExternalStorageDirectory().toString();
-        //SAVE_PATH += java.io.File.separator + "android";
-        //SAVE_PATH += java.io.File.separator + "data";
+        SAVE_PATH += java.io.File.separator + "android";
+        SAVE_PATH += java.io.File.separator + "data";
         SAVE_PATH += java.io.File.separator + getApplicationContext().getPackageName();
     }
 

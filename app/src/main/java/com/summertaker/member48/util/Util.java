@@ -1,4 +1,4 @@
-package com.summertaker.member48.common;
+package com.summertaker.member48.util;
 
 import android.content.Context;
 import android.os.Environment;
@@ -20,9 +20,11 @@ public class Util {
     public static String getUrlToFileName(String url) {
         String fileName = url;
 
-        fileName = fileName.replace(":", "");
+        fileName = fileName.replace("http://", "");
+        fileName = fileName.replace("https://", "");
         fileName = fileName.replace("/", "");
         fileName = fileName.replace("?", "");
+        fileName = fileName.replace("&", "");
         fileName = fileName.replace("=", "");
         //Log.d(mTag, fileName);
 
