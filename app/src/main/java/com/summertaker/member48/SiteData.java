@@ -1,12 +1,17 @@
 package com.summertaker.member48;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class SiteData {
     private String title;
-    private String url;
+    private String userAgent;
+    private List<String> urls = new ArrayList<>();
 
-    public SiteData(String title, String url) {
+    public SiteData(String title, String userAgent, List<String> urls) {
         this.title = title;
-        this.url = url;
+        this.userAgent = userAgent;
+        this.urls = urls;
     }
 
     public String getTitle() {
@@ -17,11 +22,19 @@ public class SiteData {
         this.title = title;
     }
 
-    public String getUrl() {
-        return url;
+    public String getUserAgent() {
+        return userAgent;
     }
 
-    public void setUrl(String url) {
-        this.url = url;
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
+    }
+
+    public List<String> getUrls() {
+        return urls;
+    }
+
+    public void setUrls(List<String> urls) {
+        this.urls = urls;
     }
 }

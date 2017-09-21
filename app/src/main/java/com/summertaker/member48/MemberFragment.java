@@ -2,9 +2,12 @@ package com.summertaker.member48;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,19 +19,23 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.summertaker.member48.common.BaseApplication;
+import com.summertaker.member48.parser.Akb48Parser;
+import com.summertaker.member48.parser.Hkt48Parser;
+import com.summertaker.member48.parser.Ngt48Parser;
+import com.summertaker.member48.parser.Nmb48Parser;
+import com.summertaker.member48.parser.Ske48Parser;
+import com.summertaker.member48.parser.Stu48Parser;
 import com.summertaker.member48.util.Util;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MemberFragment extends Fragment implements MemberInterface {
 
-    private String mTag = this.getClass().getSimpleName();
+    private String mTag = "== " + this.getClass().getSimpleName();
     private String mVolleyTag = mTag;
 
     private SwipeRefreshLayout mSwipeRefreshLayout;
@@ -36,8 +43,9 @@ public class MemberFragment extends Fragment implements MemberInterface {
 
     private MemberFragmentListener mListener;
 
-    private String mRequestUrl;
     private String mUserAgent;
+    private List<String> mRequestUrls;
+    private int mLoadCount = 0;
 
     private GridView mGridView;
     private MemberAdapter mAdapter;
@@ -68,12 +76,11 @@ public class MemberFragment extends Fragment implements MemberInterface {
     public MemberFragment() {
     }
 
-    public static MemberFragment newInstance(int position, String title, String url) {
+    public static MemberFragment newInstance(int position) {
         MemberFragment fragment = new MemberFragment();
         Bundle args = new Bundle();
         args.putInt("position", position);
-        args.putString("title", title);
-        args.putString("url", url);
+        //args.putString("title", title);
         fragment.setArguments(args);
         return fragment;
     }
@@ -92,39 +99,13 @@ public class MemberFragment extends Fragment implements MemberInterface {
         mAdapter = new MemberAdapter(getContext(), mMemberList, this);
         mGridView.setAdapter(mAdapter);
 
-        //String title = getArguments().getString("title");
-        mRequestUrl = getArguments().getString("url");
-        mUserAgent = BaseApplication.getMobileUserAgent();
+        int position = getArguments().getInt("position");
 
-        mListener.onMemberFragmentEvent("onRefreshStarted");
+        SiteData siteData = BaseApplication.getInstance().getSiteList().get(position);
+        mRequestUrls = siteData.getUrls();
+        mUserAgent = siteData.getUserAgent();
 
-        String fileName = Util.getUrlToFileName(mRequestUrl);
-        //Log.d(mTag, fileName);
-        File file = new File(BaseApplication.getSavePath(), fileName);
-        if (file.exists()) {
-            //String data = Util.readFile(getContext(), BaseApplication.getSavePath(), Util.getUrlToFileName(url));
-            //parseData(url, data);
-
-            //boolean isSuccess = file.delete();
-            //Log.d("==", fileName + " deleted.");
-
-            try {
-                StringBuilder builder = new StringBuilder();
-                BufferedReader reader = new BufferedReader(new FileReader(file));
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    builder.append(line);
-                    //builder.append('\n');
-                }
-                reader.close();
-                parseData(builder.toString());
-            } catch (IOException e) {
-                //You'll need to add proper error handling here
-            }
-        } else {
-            //BaseApplication baseApplication = ((BaseApplication) getActivity().getApplicationContext());
-            requestData();
-        }
+        loadData();
 
         return rootView;
     }
@@ -142,18 +123,44 @@ public class MemberFragment extends Fragment implements MemberInterface {
         });
     }
 
+    /**
+     * 데이터 로드하기
+     */
+    private void loadData() {
+        mListener.onMemberFragmentEvent("onRefreshStarted");
+
+        if (mLoadCount < mRequestUrls.size()) {
+            //--------------------------------
+            // 로드할 데이터가 남은 경우
+            //--------------------------------
+            String fileName = Util.getUrlToFileName(mRequestUrls.get(mLoadCount)) + ".html";
+            //Log.d(mTag, "fileName: " + fileName);
+
+            File file = new File(BaseApplication.getDataPath(), fileName);
+            if (file.exists()) {
+                parseData(Util.readFile(fileName));
+            } else {
+                requestData();
+            }
+        } else {
+            //--------------------------------
+            // 데이터 로드가 완료된 경우
+            //--------------------------------
+            mLoadCount = 0;
+
+            renderData();
+        }
+    }
+
     private void requestData() {
-        //Log.e(mTag, "url: " + url);
-        //Log.e(mTag, "userAgent: " + userAgent);
+        final String url = mRequestUrls.get(mLoadCount);
+        Log.e(mTag, "url: " + url);
 
-
-        //if (cacheData == null) {
-        StringRequest strReq = new StringRequest(Request.Method.GET, mRequestUrl, new Response.Listener<String>() {
+        StringRequest strReq = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
                 //Log.d(mTag, response.toString());
-                //mCacheManager.save(cacheId, response);
-                writeData(mRequestUrl, response);
+                writeData(url, response);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -170,42 +177,55 @@ public class MemberFragment extends Fragment implements MemberInterface {
             }
         };
 
-        // Adding request to request queue
         BaseApplication.getInstance().addToRequestQueue(strReq, mVolleyTag);
-        //} else {
-        //    parseData(url, cacheData);
-        //}
     }
 
     private void writeData(String url, String response) {
-        Util.writeToFile(BaseApplication.getSavePath(), Util.getUrlToFileName(url), response);
+        Util.writeToFile(Util.getUrlToFileName(url) + ".html", response);
         parseData(response);
     }
 
     private void parseData(String response) {
-        mMemberList.clear();
-        //mAdapter.notifyDataSetChanged();
-
-        if (mRequestUrl.contains("akb48")) {
-            Akb48Parser akb48Parser = new Akb48Parser();
-            akb48Parser.parseMemberList(response, mMemberList);
+        if (!response.isEmpty()) {
+            if (mRequestUrls.get(mLoadCount).contains("akb48")) {
+                Akb48Parser akb48Parser = new Akb48Parser();
+                akb48Parser.parseMemberList(response, mMemberList);
+            } else if (mRequestUrls.get(mLoadCount).contains("ske48")) {
+                Ske48Parser ske48Parser = new Ske48Parser();
+                ske48Parser.parseMemberList(response, mMemberList);
+            } else if (mRequestUrls.get(mLoadCount).contains("nmb48")) {
+                Nmb48Parser nmb48Parser = new Nmb48Parser();
+                nmb48Parser.parseMemberList(response, mMemberList);
+            } else if (mRequestUrls.get(mLoadCount).contains("hkt48")) {
+                Hkt48Parser hkt48Parser = new Hkt48Parser();
+                hkt48Parser.parseMemberList(response, mMemberList);
+            } else if (mRequestUrls.get(mLoadCount).contains("ngt48")) {
+                Ngt48Parser ngt48Parser = new Ngt48Parser();
+                ngt48Parser.parseMemberList(response, mMemberList);
+            } else if (mRequestUrls.get(mLoadCount).contains("stu48")) {
+                Stu48Parser stu48Parser = new Stu48Parser();
+                stu48Parser.parseMemberList(response, mMemberList);
+            }
         }
-        renderData();
+
+        mLoadCount++;
+
+        if (mLoadCount == mRequestUrls.size()) {
+            mLoadCount = 0;
+            renderData();
+        } else {
+            loadData();
+        }
     }
 
     private void renderData() {
-        //if (!isDataLoaded || !isWikiLoaded) {
-        //    return;
+        //Log.d(mTag, "mMemberList.size(): " + mMemberList.size());
+
+        //if (mMemberList.size() == 0) {
+        //    //alertNetworkErrorAndFinish(mErrorMessage);
+        //} else {
+        //    //gridView.setOnItemClickListener(itemClickListener);
         //}
-
-        //mPbLoading.setVisibility(View.GONE);
-        //Log.e(mTag, "mMemberList.size(): " + mMemberList.size());
-
-        if (mMemberList.size() == 0) {
-            //alertNetworkErrorAndFinish(mErrorMessage);
-        } else {
-            //gridView.setOnItemClickListener(itemClickListener);
-        }
         mAdapter.notifyDataSetChanged();
 
         if (mIsRefreshMode) {
@@ -231,8 +251,13 @@ public class MemberFragment extends Fragment implements MemberInterface {
     public void refresh() {
         //mSwipeRefreshLayout.setRefreshing(true);
         //mIsRefreshMode = true;
+
         mListener.onMemberFragmentEvent("onRefreshStarted");
-        requestData();
+
+        mMemberList.clear();
+        //mAdapter.notifyDataSetChanged();
+
+        loadData();
     }
 
     public void openInNew() {
@@ -243,7 +268,9 @@ public class MemberFragment extends Fragment implements MemberInterface {
 
     @Override
     public void onPictureClick(int position, String imageUrl) {
-
+        Log.d(mTag, imageUrl);
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(imageUrl));
+        startActivity(intent);
     }
 
     @Override

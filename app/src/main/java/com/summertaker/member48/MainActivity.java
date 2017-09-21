@@ -21,30 +21,30 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
 
+import com.summertaker.member48.common.BaseApplication;
 import com.summertaker.member48.util.SlidingTabLayout;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, MemberFragment.MemberFragmentListener {
 
     //static final String LOG_TAG = "TAG";
 
-    public static final int REQUEST_PERMISSION_CODE = 100;
+    private static final int REQUEST_PERMISSION_CODE = 100;
 
-    ProgressBar mProgressBar;
-    List<SiteData> mSiteData = new ArrayList<>();
+    private ProgressBar mProgressBar;
 
-    ActionBarDrawerToggle mDrawerToggle;
-    ViewPager mViewPager;
+    private ViewPager mViewPager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mProgressBar = findViewById(R.id.toolbar_progress_bar);
+
+        //----------------------------------------------------------------------------
         // 런타임에 권한 요청
         // https://developer.android.com/training/permissions/requesting.html?hl=ko
+        //----------------------------------------------------------------------------
         ActivityCompat.requestPermissions(this, new String[]{
                 Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 Manifest.permission.READ_EXTERNAL_STORAGE
@@ -82,8 +82,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public void init() {
-        mProgressBar = findViewById(R.id.toolbar_progress_bar);
-
         /*
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -104,15 +102,20 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         });
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
-        mDrawerToggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.addDrawerListener(mDrawerToggle);
-        mDrawerToggle.syncState();
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.syncState();
 
         NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        mSiteData.add(new SiteData("AKB48", "http://sp.akb48.co.jp/profile/member/index.php?g_code=all"));
-        mSiteData.add(new SiteData("SKE48", "http://sp.ske48.co.jp"));
+        /*
+        mSiteData = new ArrayList<>();
+        String[] akb48Urls = {"http://sp.akb48.co.jp/profile/member/index.php?g_code=all"};
+        mSiteData.add(new SiteData("AKB48", akb48Urls));
+        String[] ske48Urls = {"http://sp.ske48.co.jp"};
+        mSiteData.add(new SiteData("SKE48", ske48Urls));
+        */
 
         SectionsPagerAdapter sectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
         mViewPager = findViewById(R.id.viewpager);
@@ -122,7 +125,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // 뷰페이저 간 이동 시 프레그먼트 자동으로 새로고침 방지
         // https://stackoverflow.com/questions/28494637/android-how-to-stop-refreshing-fragments-on-tab-change
         //-------------------------------------------------------------------------------------------------------
-        mViewPager.setOffscreenPageLimit(mSiteData.size());
+        mViewPager.setOffscreenPageLimit(BaseApplication.getInstance().getSiteList().size());
 
         SlidingTabLayout slidingTabLayout = findViewById(R.id.sliding_tabs);
         slidingTabLayout.setViewPager(mViewPager);
@@ -180,19 +183,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         @Override
         public Fragment getItem(int position) {
-            String title = mSiteData.get(position).getTitle();
-            String url = mSiteData.get(position).getUrl();
-            return MemberFragment.newInstance(position, title, url);
+            //SiteData siteData = BaseApplication.getInstance().getSiteData(position);
+            //String title = siteData.getTitle();
+            return MemberFragment.newInstance(position);
         }
 
         @Override
         public int getCount() {
-            return mSiteData.size();
+            return BaseApplication.getInstance().getSiteList().size();
         }
 
         @Override
         public CharSequence getPageTitle(int position) {
-            return mSiteData.get(position).getTitle();
+            return BaseApplication.getInstance().getSiteData(position).getTitle();
         }
     }
 
@@ -241,14 +244,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public void onMemberFragmentEvent(String event) {
         switch (event) {
             case "onRefreshStarted":
-                mProgressBar.setVisibility(View.VISIBLE);
+                if (mProgressBar != null) {
+                    //mProgressBar.setVisibility(View.VISIBLE);
+                }
 
                 // 툴바 햄버거 아이콘을 기본으로 설정
                 //mDrawerToggle.setDrawerIndicatorEnabled(true);
 
                 break;
             case "onRefreshFinished":
-                mProgressBar.setVisibility(View.GONE);
+                if (mProgressBar != null) {
+                    //mProgressBar.setVisibility(View.GONE);
+                }
 
                 /*
                 // 툴바 햄버거 아이콘을 뒤로 가기 아이콘으로 변경

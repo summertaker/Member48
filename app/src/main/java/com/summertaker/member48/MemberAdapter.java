@@ -39,7 +39,7 @@ public class MemberAdapter extends BaseDataAdapter {
         this.mMemberInterface = memberInterface;
 
         // MainActivity에서 미리 권한을 획득함
-        mPath = BaseApplication.getSavePath();
+        mPath = BaseApplication.getDataPath();
         //Log.d(mTag, "mPath: " + mPath);
 
         File dir = new File(mPath);
@@ -92,17 +92,20 @@ public class MemberAdapter extends BaseDataAdapter {
             holder = (ViewHolder) convertView.getTag();
         }
 
-        String thumbnailUrl = data.getThumbnailUrl();
+        final String thumbnailUrl = data.getThumbnailUrl();
+        final String imageUrl = data.getImageUrl();
 
         if (thumbnailUrl == null || thumbnailUrl.isEmpty()) {
             //holder.loLoading.setVisibility(View.GONE);
-            //holder.ivPicture.setImageResource(R.drawable.anonymous);
+            holder.ivPicture.setImageResource(R.drawable.placeholder);
         } else {
+            //Log.d(mTag, thumbnailUrl);
+
             String fileName = Util.getUrlToFileName(thumbnailUrl);
             File file = new File(mPath, fileName);
             if (file.exists()) {
                 Picasso.with(mContext).load(file).into(holder.ivPicture);
-                Log.d(mTag, fileName + " local loaded.");
+                //Log.d(mTag, fileName + " local loaded.");
             } else {
                 Picasso.with(mContext).load(thumbnailUrl).into(holder.ivPicture, new com.squareup.picasso.Callback() {
                     @Override
@@ -113,6 +116,7 @@ public class MemberAdapter extends BaseDataAdapter {
                     @Override
                     public void onError() {
                         //progressBar.setVisibility(View.GONE);
+                        Log.e(mTag, "PICASSO IMAGE LOAD ERROR!!!");
                     }
                 });
 
@@ -121,6 +125,13 @@ public class MemberAdapter extends BaseDataAdapter {
 
             //Glide.with(mContext).load(thumbnailUrl).into(holder.ivPicture);
         }
+
+        holder.ivPicture.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mMemberInterface.onPictureClick(position, imageUrl);
+            }
+        });
 
         holder.tvName.setText(data.getName());
 
@@ -149,7 +160,7 @@ public class MemberAdapter extends BaseDataAdapter {
                         File file = new File(mPath, fileName);
                         if (file.exists()) {
                             isSuccess = file.delete();
-                            Log.d("==", fileName + " deleted.");
+                            //Log.d("==", fileName + " deleted.");
                         }
                         try {
                             isSuccess = file.createNewFile();
@@ -158,9 +169,9 @@ public class MemberAdapter extends BaseDataAdapter {
                                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, ostream);
                                 ostream.flush();
                                 ostream.close();
-                                Log.d("==", fileName + " created.");
+                                //Log.d("==", fileName + " created.");
                             } else {
-                                Log.e("==", fileName + " failed.");
+                                Log.e("==", fileName + " FAILED.");
                             }
                         } catch (IOException e) {
                             Log.e("IOException", e.getLocalizedMessage());
@@ -171,7 +182,7 @@ public class MemberAdapter extends BaseDataAdapter {
 
             @Override
             public void onBitmapFailed(Drawable errorDrawable) {
-
+                Log.e(mTag, "IMAGE SAVE ERROR!!! onBitmapFailed()");
             }
 
             @Override

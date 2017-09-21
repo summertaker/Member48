@@ -1,78 +1,73 @@
-package com.summertaker.member48;
+package com.summertaker.member48.parser;
 
+import com.summertaker.member48.MemberData;
 import com.summertaker.member48.common.BaseParser;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class Akb48Parser extends BaseParser {
+public class Ngt48Parser extends BaseParser {
 
     public void parseMemberList(String response, ArrayList<MemberData> memberList) {
         /*
-        <ul class="infoList">
-        <li>
-        <a href="./detail/index.php?artist_code=83100536&g_code=all" data-ajax="false">
-          <div class="textCenterBox">
-            <div class="photo"><img class="lazy borderPink" data-original="http://image.excite.co.jp/jp/akb48/image/smartphone/20160509/profile/thumb/83100536.jpg" alt="入山杏奈"></div>
-            <div class="text02">
-              <p class="textbBld pnk fL">入山杏奈</p>
-              <p class="lineRight colorPink02 r fR f12">Anna Iriyama</p>
+        <div class="clearfix profile2_wrapper">
+            <div class="profile2 position">
+                <figure>
+                    <a href="/ogino_yuka">
+                        <span style="" data-idx="2" >
+                            <img alt="荻野 由佳" src="http://img.futureartist.net/ngt48/profile/ogino_yuka.jpg" />
+                        </span>
+                    </a>
+                </figure>
+                <div class="profile2_name">荻野 由佳</div>
+                <div class="profile2_roman">
+                    OGINO YUKA
+                    <span class="rmks" data-idx="4" >(NGT48 Team NⅢ 副キャプテン)</span>
+                </div>
             </div>
-          </div>
-        </a>
-        </li>
         */
         if (response == null || response.isEmpty()) {
             return;
         }
 
-        Document doc = Jsoup.parse(response);
-        Element root = doc.select(".infoList").first();
+        //response = Util.getJapaneseString(response, "8859_1");
 
-        if (root != null) {
-            for (Element row : root.select("li")) {
+        Document doc = Jsoup.parse(response);
+
+        for (Element root : doc.select(".profile2_wrapper")) {
+            for (Element row : root.select(".profile2")) {
                 String name;
-                String nameEn;
-                String noSpaceName;
                 String thumbnailUrl;
+                String imageUrl;
                 String profileUrl;
 
                 Element el;
 
                 Element a = row.select("a").first();
                 profileUrl = a.attr("href");
-                profileUrl = profileUrl.replace("./", "/");
-                profileUrl = "http://sp.akb48.co.jp/profile/member" + profileUrl;
 
                 Element img = a.select("img").first();
                 if (img == null) {
                     continue;
                 }
-                thumbnailUrl = img.attr("data-original");
-                //Log.e(mTag, thumbnailUrl);
+                String src = img.attr("src");
+                thumbnailUrl = src;
 
-                el = a.select(".textbBld").first();
-                if (el == null) {
-                    continue;
-                }
-                name = el.text().trim();
+                imageUrl = src;
 
-                el = a.select(".lineRight").first();
-                if (el == null) {
-                    continue;
-                }
-                nameEn = el.text().trim();
+                name = img.attr("alt");
 
-                //Log.e(mTag, name + " / " + nameEn + " / " + thumbnailUrl + " / " + profileUrl);
+                //Log.e(mTag, name + " / " + thumbnailUrl + " / " + profileUrl);
 
                 MemberData memberData = new MemberData();
                 memberData.setName(name);
                 memberData.setThumbnailUrl(thumbnailUrl);
-                memberData.setImageUrl(thumbnailUrl);
+                memberData.setImageUrl(imageUrl);
                 memberData.setProfileUrl(profileUrl);
                 memberList.add(memberData);
             }
@@ -185,3 +180,5 @@ public class Akb48Parser extends BaseParser {
         return hashMap;
     }
 }
+
+
