@@ -7,11 +7,15 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.GridView;
+import android.widget.RadioButton;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
@@ -38,17 +42,34 @@ public class MemberFragment extends Fragment implements MemberInterface {
     private String mTag = "== " + this.getClass().getSimpleName();
     private String mVolleyTag = mTag;
 
+    private MemberFragmentListener mListener;
+
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private boolean mIsRefreshMode = false;
-
-    private MemberFragmentListener mListener;
 
     private String mUserAgent;
     private List<String> mRequestUrls;
     private int mLoadCount = 0;
 
-    private GridView mGridView;
-    private MemberAdapter mAdapter;
+    //private GridView mGridView;
+    //private MemberAdapter mAdapter;
+
+    private enum LayoutManagerType {
+        GRID_LAYOUT_MANAGER,
+        LINEAR_LAYOUT_MANAGER
+    }
+    protected MemberFragment.LayoutManagerType mCurrentLayoutManagerType;
+    private static final String KEY_LAYOUT_MANAGER = "layoutManager";
+    private static final int SPAN_COUNT = 2;
+
+    protected RadioButton mLinearLayoutRadioButton;
+    protected RadioButton mGridLayoutRadioButton;
+
+    protected RecyclerView mRecyclerView;
+    protected CustomAdapter mAdapter;
+    protected RecyclerView.LayoutManager mLayoutManager;
+    protected String[] mDataset;
+
     private ArrayList<MemberData> mMemberList;
 
     // Container Activity must implement this interface
@@ -93,11 +114,21 @@ public class MemberFragment extends Fragment implements MemberInterface {
         mSwipeRefreshLayout = rootView.findViewById(R.id.swiperefresh);
         mSwipeRefreshLayout.setColorSchemeResources(R.color.swipe_color_1, R.color.swipe_color_2, R.color.swipe_color_3, R.color.swipe_color_4);
 
-        mGridView = rootView.findViewById(R.id.gridView);
 
-        mMemberList = new ArrayList<>();
-        mAdapter = new MemberAdapter(getContext(), mMemberList, this);
-        mGridView.setAdapter(mAdapter);
+        //mGridView = rootView.findViewById(R.id.gridView);
+        //mAdapter = new MemberAdapter(getContext(), mMemberList, this);
+        //mGridView.setAdapter(mAdapter);
+
+        mRecyclerView = rootView.findViewById(R.id.recyclerView);
+        mLayoutManager = new LinearLayoutManager(getActivity());
+
+        mCurrentLayoutManagerType = MemberFragment.LayoutManagerType.LINEAR_LAYOUT_MANAGER;
+
+        if (savedInstanceState != null) {
+            // Restore saved layout manager type.
+            mCurrentLayoutManagerType = (MemberFragment.LayoutManagerType) savedInstanceState.getSerializable(KEY_LAYOUT_MANAGER);
+        }
+        setRecyclerViewLayoutManager(mCurrentLayoutManagerType);
 
         int position = getArguments().getInt("position");
 
@@ -105,9 +136,68 @@ public class MemberFragment extends Fragment implements MemberInterface {
         mRequestUrls = siteData.getUrls();
         mUserAgent = siteData.getUserAgent();
 
+        // MainActivity에서 미리 권한을 획득함
+        String path = BaseApplication.getDataPath();
+        File dir = new File(path);
+        if (!dir.exists()) {
+            boolean isSuccess = dir.mkdirs();
+            //if (isSuccess) {
+            //    Log.d(mTag, "created.");
+            //} else {
+            //    Log.d(mTag, "mkdir failed.");
+            //}
+        //} else {
+            //Log.d(mTag, "exists.");
+        }
+
+        mMemberList = new ArrayList<>();
+        mAdapter = new CustomAdapter(getContext(), mMemberList, path);
+        mRecyclerView.setAdapter(mAdapter);
+
         loadData();
+        //initDataset();
 
         return rootView;
+    }
+
+    private void initDataset() {
+        mDataset = new String[30];
+        for (int i = 0; i < 30; i++) {
+            mDataset[i] = "This is element #" + i;
+        }
+    }
+
+    public void setRecyclerViewLayoutManager(MemberFragment.LayoutManagerType layoutManagerType) {
+        int scrollPosition = 0;
+
+        // If a layout manager has already been set, get current scroll position.
+        if (mRecyclerView.getLayoutManager() != null) {
+            scrollPosition = ((LinearLayoutManager) mRecyclerView.getLayoutManager()).findFirstCompletelyVisibleItemPosition();
+        }
+
+        switch (layoutManagerType) {
+            case GRID_LAYOUT_MANAGER:
+                mLayoutManager = new GridLayoutManager(getActivity(), SPAN_COUNT);
+                mCurrentLayoutManagerType = MemberFragment.LayoutManagerType.GRID_LAYOUT_MANAGER;
+                break;
+            case LINEAR_LAYOUT_MANAGER:
+                mLayoutManager = new LinearLayoutManager(getActivity());
+                mCurrentLayoutManagerType = MemberFragment.LayoutManagerType.LINEAR_LAYOUT_MANAGER;
+                break;
+            default:
+                mLayoutManager = new LinearLayoutManager(getActivity());
+                mCurrentLayoutManagerType = MemberFragment.LayoutManagerType.LINEAR_LAYOUT_MANAGER;
+        }
+
+        mRecyclerView.setLayoutManager(mLayoutManager);
+        mRecyclerView.scrollToPosition(scrollPosition);
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        // Save currently selected layout manager.
+        savedInstanceState.putSerializable(KEY_LAYOUT_MANAGER, mCurrentLayoutManagerType);
+        super.onSaveInstanceState(savedInstanceState);
     }
 
     @Override
@@ -226,6 +316,7 @@ public class MemberFragment extends Fragment implements MemberInterface {
         //} else {
         //    //gridView.setOnItemClickListener(itemClickListener);
         //}
+
         mAdapter.notifyDataSetChanged();
 
         if (mIsRefreshMode) {
@@ -245,19 +336,22 @@ public class MemberFragment extends Fragment implements MemberInterface {
 
     public void goTop() {
         //mGridView.smoothScrollToPosition(0);
-        mGridView.setSelection(0);
+        //mGridView.setSelection(0);
     }
 
     public void refresh() {
-        //mSwipeRefreshLayout.setRefreshing(true);
-        //mIsRefreshMode = true;
+        if (mCurrentLayoutManagerType == MemberFragment.LayoutManagerType.LINEAR_LAYOUT_MANAGER) {
+            setRecyclerViewLayoutManager(LayoutManagerType.GRID_LAYOUT_MANAGER);
+            mAdapter.setmCurrentLayoutManagerType("GRID_LAYOUT_MANAGER");
+        } else {
+            setRecyclerViewLayoutManager(LayoutManagerType.LINEAR_LAYOUT_MANAGER);
+            mAdapter.setmCurrentLayoutManagerType("LINEAR_LAYOUT_MANAGER");
+        }
 
-        mListener.onMemberFragmentEvent("onRefreshStarted");
+        //mListener.onMemberFragmentEvent("onRefreshStarted");
+        //mMemberList.clear();
 
-        mMemberList.clear();
-        //mAdapter.notifyDataSetChanged();
-
-        loadData();
+        //loadData();
     }
 
     public void openInNew() {

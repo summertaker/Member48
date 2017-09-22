@@ -82,7 +82,7 @@ public class MemberAdapter extends BaseDataAdapter {
             //holder.loLoading = (RelativeLayout) convertView.findViewById(R.id.loLoading);
             //holder.pbLoading = (ProgressBar) convertView.findViewById(R.id.pbLoading);
 
-            holder.cardView = convertView.findViewById(R.id.cardView);
+            //holder.cardView = convertView.findViewById(R.id.cardView);
             holder.ivPicture = convertView.findViewById(R.id.ivPicture);
             holder.tvName = convertView.findViewById(R.id.tvName);
             holder.ivClose = convertView.findViewById(R.id.ivClose);
